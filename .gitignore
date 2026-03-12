@@ -1,0 +1,62 @@
+# Python
+#
+# Python byte-code files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environments
+.venv/
+venv/
+env/
+.env/
+ENV/
+bin/
+include/
+lib/
+lib64/
+
+# Packaging
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.hypothesis/
+.pytest_cache/
+
+# Editors
+.idea/  # For PyCharm/IntelliJ
+.vscode/ # For VS Code (only if you want to ignore editor-specific settings)
+
+# Miscellaneous
+.dmypy.json
+dmypy.json
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
