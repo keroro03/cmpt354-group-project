@@ -1,19 +1,33 @@
 import os
+import psycopg2
+import psycopg2.extras
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from dotenv import load_dotenv
+from psycopg2 import sql
+
+# Load all .env vars 
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
 def get_db():
-    return
-
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    print("Connected to DB")
+    return conn
 
 # Endpoints
-@app.route("/books", methods=["GET"])
-def get_books():
-    pass
+@app.route("/authors", methods=["GET"])
+def get_authors():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM author")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return {"authors": rows}
 
 @app.route("/books/<int:book_id>", methods=["GET"])
 def get_book(book_id):
@@ -51,6 +65,5 @@ def add_member():
 def delete_member(member_id):
     pass
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=8000, debug=True)
