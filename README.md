@@ -29,3 +29,10 @@
    - `./scripts/migrate_up.sh`
 4. Run down migrations:
    - `./scripts/migrate_down.sh`
+
+## Sample seed data
+
+1. Apply migrations first:
+   - `./scripts/migrate_up.sh`
+2. Run seed:
+   - `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seeds/01_sample_seed.sql`
