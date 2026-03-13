@@ -34,7 +34,6 @@ env/
 ENV/
 bin/
 include/
-lib/
 lib64/
 
 # Packaging
