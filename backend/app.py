@@ -1,5 +1,6 @@
 import os
 import psycopg2
+import psycopg2.extras
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -22,7 +23,7 @@ def get_db():
 def get_authors():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM authors")
+    cur.execute("SELECT * FROM author")
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -65,4 +66,4 @@ def delete_member(member_id):
     pass
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=8000, debug=True)
