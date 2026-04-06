@@ -5,47 +5,75 @@ import psycopg2.extras
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-from psycopg2 import sql
 
-# Load all .env vars 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
+
 def get_db():
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-    print("Connected to DB")
     return conn
 
-# Endpoints
-@app.route("/authors", methods=["GET"])
-def get_authors():
+
+# Selection: Search books by title / author / book_id
+# GET /books?q=<text>  or  GET /books?book_id=<uuid>
+# Returns a distinct list of books (not copies)
+@app.route("/books", methods=["GET"])
+def search_books():
+    q = request.args.get("q", "").strip()
+    book_id = request.args.get("book_id", "").strip()
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM author")
+
+    if book_id:
+        cur.execute("SELECT DISTINCT b.* FROM book b WHERE b.id = %s", (book_id,))
+    elif q:
+        like = f"%{q.lower()}%"
+        cur.execute(
+            """
+            SELECT DISTINCT b.*
+            FROM book b
+            LEFT JOIN book_author ba ON ba.book_id = b.id
+            LEFT JOIN author a ON a.id = ba.author_id
+            WHERE LOWER(b.title) LIKE %s
+               OR LOWER(a.first_name || ' ' || a.last_name) LIKE %s
+            """,
+            (like, like),
+        )
+    else:
+        cur.execute("SELECT * FROM book ORDER BY title")
+
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return {"authors": rows}
+    return jsonify({"books": rows})
 
-@app.route("/books/<uuid:book_id>", methods=["GET"])
-def get_book(book_id):
+
+# Selection: Show all available copies of a book
+# GET /books/<book_id>/copies
+@app.route("/books/<book_id>/copies", methods=["GET"])
+def get_available_copies(book_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("""
-        SELECT b.*, array_agg(a.first_name || ' ' || a.last_name) as authors
-        FROM book b
-        JOIN book_author ba ON b.id = ba.book_id
-        JOIN author a ON ba.author_id = a.id
-        WHERE b.id = %s
-        GROUP BY b.id
-    """, (str(book_id),))
-    book = cur.fetchone()
+    cur.execute(
+        """
+        SELECT bc.*, b.branch_name, b.location
+        FROM book_copies bc
+        JOIN branch b ON b.id = bc.branch_id
+        WHERE bc.book_id = %s AND bc.status = 'AVAILABLE'
+        """,
+        (book_id,),
+    )
+    rows = cur.fetchall()
     cur.close()
     conn.close()
-    return jsonify(book) if book else ({"error": "Book not found"}, 404)
+    return jsonify({"copies": rows})
 
+# Nested: Find the most borrowed book
+# GET /books/popular
 @app.route("/books/popular", methods=["GET"])
 def get_popular_books():
     conn = get_db()
@@ -107,6 +135,38 @@ def delete_copy(book_id, copied_book_id):
         cur.close()
         conn.close()
 
+# Deletion: Delete a book
+# DELETE /books/<book_id>
+# Cannot delete if any copy is currently borrowed (return_date IS NULL)
+# Valid deletes cascade to all book_copies (and their borrow history)
+@app.route("/books/<book_id>", methods=["DELETE"])
+def delete_book(book_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT 1 FROM borrow
+        WHERE book_id = %s AND return_date IS NULL
+        LIMIT 1
+        """,
+        (book_id,),
+    )
+    if cur.fetchone():
+        cur.close()
+        conn.close()
+        return jsonify({"error": "Cannot delete a book that is currently borrowed"}), 409
+
+    cur.execute("DELETE FROM book WHERE id = %s", (book_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "Book deleted successfully"})
+
+
+
+# Update: Check out a book (borrow)
+# POST /borrow  body: { member_id, book_id, copied_book_id, due_date }
+# DB triggers enforce: copy must be AVAILABLE and member must have < 5 active loans
 @app.route("/borrow", methods=["POST"])
 def borrow_book():
     data = request.json
@@ -128,6 +188,10 @@ def borrow_book():
         cur.close()
         conn.close()
 
+
+# Update: Return a book
+# POST /return  body: { book_id, copied_book_id }
+# Sets return_date = today; trigger updates book_copies.status to AVAILABLE
 @app.route("/return", methods=["POST"])
 def return_book():
     data = request.json
