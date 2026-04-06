@@ -1,5 +1,8 @@
 BEGIN;
 
+-- Disable triggers for the session
+SET session_replication_role = 'replica';
+
 -- branch (5)
 INSERT INTO branch (id, branch_name, location)
 VALUES
@@ -113,5 +116,8 @@ VALUES
   ('60000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000004', '50000000-0000-0000-0000-000000000005', 1, CURRENT_DATE - 5,  CURRENT_DATE + 9,  NULL),
   ('60000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000005', '50000000-0000-0000-0000-000000000006', 1, CURRENT_DATE - 20, CURRENT_DATE - 10, CURRENT_DATE - 12)
 ON CONFLICT (id) DO NOTHING;
+
+-- Re-enable triggers
+SET session_replication_role = 'origin';
 
 COMMIT;

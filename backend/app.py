@@ -72,48 +72,68 @@ def get_available_copies(book_id):
     conn.close()
     return jsonify({"copies": rows})
 
-
 # Nested: Find the most borrowed book
 # GET /books/popular
 @app.route("/books/popular", methods=["GET"])
 def get_popular_books():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(
-        """
-        SELECT b.*, COUNT(br.id) AS borrow_count
+    cur.execute("""
+        SELECT b.title, COUNT(br.id) as borrow_count
         FROM book b
-        JOIN borrow br ON br.book_id = b.id
-        GROUP BY b.id
+        JOIN borrow br ON b.id = br.book_id
+        GROUP BY b.id, b.title
         ORDER BY borrow_count DESC
-        LIMIT 1
-        """
-    )
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return jsonify({"book": row})
-
-
-# Nested: Find books that have never been borrowed
-# GET /books/never-borrowed
-@app.route("/books/never-borrowed", methods=["GET"])
-def get_never_borrowed_books():
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(
-        """
-        SELECT * FROM book
-        WHERE id NOT IN (SELECT DISTINCT book_id FROM borrow)
-        ORDER BY title
-        """
-    )
+        LIMIT 10
+    """)
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return jsonify({"books": rows})
+    return jsonify({"popular_books": rows})
 
+@app.route("/copies", methods=["POST"])
+def add_copy():
+    data = request.json
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO book_copies (book_id, copied_book_id, branch_id, status)
+            VALUES (%s, %s, %s, %s)
+            RETURNING book_id, copied_book_id
+        """, (data['book_id'], data['copied_book_id'], data['branch_id'], data.get('status', 'AVAILABLE')))
+        new_copy = cur.fetchone()
+        conn.commit()
+        return jsonify({"message": "Copy added", "ids": new_copy}), 201
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        cur.close()
+        conn.close()
 
+@app.route("/copies/<uuid:book_id>/<int:copied_book_id>", methods=["DELETE"])
+def delete_copy(book_id, copied_book_id):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            DELETE FROM book_copies 
+            WHERE book_id = %s AND copied_book_id = %s 
+            RETURNING copied_book_id
+        """, (str(book_id), copied_book_id))
+        deleted_copy = cur.fetchone()
+        if deleted_copy:
+            conn.commit()
+            return jsonify({"message": "Copy deleted", "copied_book_id": deleted_copy[0]}), 200
+        else:
+            return jsonify({"error": "Copy not found"}), 404
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        cur.close()
+        conn.close()
 
 # Deletion: Delete a book
 # DELETE /books/<book_id>
@@ -149,36 +169,24 @@ def delete_book(book_id):
 # DB triggers enforce: copy must be AVAILABLE and member must have < 5 active loans
 @app.route("/borrow", methods=["POST"])
 def borrow_book():
-    data = request.get_json()
-    member_id = data.get("member_id")
-    book_id = data.get("book_id")
-    copied_book_id = data.get("copied_book_id")
-    due_date = data.get("due_date")
-
-    if not all([member_id, book_id, copied_book_id, due_date]):
-        return jsonify({"error": "member_id, book_id, copied_book_id, and due_date are required"}), 400
-
+    data = request.json
     conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
-        cur.execute(
-            """
+        cur.execute("""
             INSERT INTO borrow (member_id, book_id, copied_book_id, due_date)
             VALUES (%s, %s, %s, %s)
-            RETURNING *
-            """,
-            (member_id, book_id, copied_book_id, due_date),
-        )
-        row = cur.fetchone()
+            RETURNING id
+        """, (data['member_id'], data['book_id'], data['copied_book_id'], data['due_date']))
+        borrow_id = cur.fetchone()[0]
         conn.commit()
-        return jsonify({"borrow": row}), 201
+        return jsonify({"message": "Book checked out", "borrow_id": borrow_id}), 201
     except Exception as e:
         conn.rollback()
-        return jsonify({"error": str(e)}), 409
+        return jsonify({"error": str(e)}), 400
     finally:
         cur.close()
         conn.close()
-
 
 
 # Update: Return a book
@@ -186,131 +194,86 @@ def borrow_book():
 # Sets return_date = today; trigger updates book_copies.status to AVAILABLE
 @app.route("/return", methods=["POST"])
 def return_book():
-    data = request.get_json()
-    book_id = data.get("book_id")
-    copied_book_id = data.get("copied_book_id")
-
-    if not all([book_id, copied_book_id]):
-        return jsonify({"error": "book_id and copied_book_id are required"}), 400
-
+    data = request.json
     conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(
-        """
-        UPDATE borrow
-        SET return_date = CURRENT_DATE
-        WHERE book_id = %s AND copied_book_id = %s AND return_date IS NULL
-        RETURNING *
-        """,
-        (book_id, copied_book_id),
-    )
-    row = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE borrow 
+            SET return_date = CURRENT_DATE 
+            WHERE book_id = %s AND copied_book_id = %s AND return_date IS NULL
+            RETURNING id
+        """, (data['book_id'], data['copied_book_id']))
+        updated = cur.fetchone()
+        if not updated:
+            return jsonify({"error": "No active loan found for this copy"}), 404
+        conn.commit()
+        return jsonify({"message": "Book returned successfully"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        cur.close()
+        conn.close()
 
-    if not row:
-        return jsonify({"error": "No active borrow found for this copy"}), 404
-    return jsonify({"borrow": row})
-
-
-
-# Selection: Overdue loans for a member
-# GET /loans/<member_id>/overdue
-# due_date < today AND return_date IS NULL
-@app.route("/loans/<member_id>/overdue", methods=["GET"])
+@app.route("/loans/<uuid:member_id>/overdue", methods=["GET"])
 def get_overdue_loans(member_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(
-        """
-        SELECT br.*, b.title
+    cur.execute("""
+        SELECT br.*, b.title 
         FROM borrow br
-        JOIN book b ON b.id = br.book_id
-        WHERE br.member_id = %s
+        JOIN book b ON br.book_id = b.id
+        WHERE br.member_id = %s 
+          AND br.return_date IS NULL 
           AND br.due_date < CURRENT_DATE
-          AND br.return_date IS NULL
-        ORDER BY br.due_date
-        """,
-        (member_id,),
-    )
+    """, (str(member_id),))
     rows = cur.fetchall()
     cur.close()
     conn.close()
     return jsonify({"overdue_loans": rows})
 
-
-
-# Aggregation: Count books borrowed per member
-# GET /members/borrow-count
-@app.route("/members/borrow-count", methods=["GET"])
-def get_borrow_count_per_member():
+@app.route("/members", methods=["POST"])
+def add_member():
+    data = request.json
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(
-        """
-        SELECT m.id, m.first_name, m.last_name, COUNT(br.id) AS borrow_count
-        FROM member m
-        LEFT JOIN borrow br ON br.member_id = m.id
-        GROUP BY m.id, m.first_name, m.last_name
-        ORDER BY borrow_count DESC
-        """
-    )
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify({"members": rows})
+    try:
+        cur.execute("""
+            INSERT INTO member (first_name, last_name, email, phone_number, address)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, first_name, last_name, email;
+        """, (
+            data['first_name'], 
+            data['last_name'], 
+            data['email'], 
+            data.get('phone_number'), 
+            data.get('address')
+        ))
+        new_member = cur.fetchone()
+        conn.commit()
+        return jsonify(new_member), 201
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return jsonify({"error": "A member with this email already exists"}), 400
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        cur.close()
+        conn.close()
 
-
-
-# Division: Members who have borrowed all books in a given genre
-# GET /members/borrowed-all?genre=<genre>
-@app.route("/members/borrowed-all", methods=["GET"])
-def get_members_borrowed_all_in_genre():
-    genre = request.args.get("genre", "").strip()
-    if not genre:
-        return jsonify({"error": "genre query parameter is required"}), 400
-
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(
-        """
-        SELECT m.id, m.first_name, m.last_name
-        FROM member m
-        WHERE NOT EXISTS (
-            SELECT b.id FROM book b
-            WHERE b.genre = %s
-              AND NOT EXISTS (
-                  SELECT 1 FROM borrow br
-                  WHERE br.member_id = m.id
-                    AND br.book_id = b.id
-              )
-        )
-        ORDER BY m.last_name, m.first_name
-        """,
-        (genre,),
-    )
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify({"members": rows})
-
-
-
-# Deletion: Delete a library member
-# DELETE /members/<member_id>
-# Cannot delete if member has active (unreturned) borrows
-@app.route("/members/<member_id>", methods=["DELETE"])
+@app.route("/members/<uuid:member_id>", methods=["DELETE"])
 def delete_member(member_id):
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("DELETE FROM member WHERE id = %s", (member_id,))
+        cur.execute("DELETE FROM member WHERE id = %s", (str(member_id),))
         conn.commit()
-        return jsonify({"message": "Member deleted successfully"})
+        return jsonify({"message": "Member deleted"})
     except Exception as e:
         conn.rollback()
-        return jsonify({"error": str(e)}), 409
+        return jsonify({"error": str(e)}), 400
     finally:
         cur.close()
         conn.close()
