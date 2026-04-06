@@ -17,6 +17,16 @@ def get_db():
     return conn
 
 
+def get_authors():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM author")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return {"authors": rows}
+
+
 # Selection: Search books by title / author / book_id
 # GET /books?q=<text>  or  GET /books?book_id=<uuid>
 # Returns a distinct list of books (not copies)
