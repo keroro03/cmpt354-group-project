@@ -16,7 +16,7 @@ def get_db():
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     return conn
 
-
+@app.route("/authors", methods=["GET"])
 def get_authors():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
