@@ -117,6 +117,16 @@ VALUES
   ('60000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000005', '50000000-0000-0000-0000-000000000006', 1, CURRENT_DATE - 20, CURRENT_DATE - 10, CURRENT_DATE - 12)
 ON CONFLICT (id) DO NOTHING;
 
+-- Sync book_copies status with active borrows (since triggers were disabled)
+UPDATE book_copies bc
+SET status = 'LOANED'
+WHERE EXISTS (
+  SELECT 1 FROM borrow b
+  WHERE b.book_id = bc.book_id
+    AND b.copied_book_id = bc.copied_book_id
+    AND b.return_date IS NULL
+);
+
 -- Re-enable triggers
 SET session_replication_role = 'origin';
 

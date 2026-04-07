@@ -46,6 +46,32 @@ def return_book():
     return jsonify({"message": "Book returned successfully"})
 
 
+# GET /borrow/member/:member_id/active - Get active loans for a member
+@borrows_bp.route("/member/<member_id>/active", methods=["GET"])
+def get_member_active_loans(member_id):
+    query_used = """
+SELECT 
+    b.id as borrow_id,
+    b.book_id,
+    b.copied_book_id,
+    bk.title as book_title,
+    b.loan_date,
+    b.due_date,
+    br.name as branch_name
+FROM borrow b
+JOIN book bk ON bk.id = b.book_id
+JOIN book_copies bc ON bc.book_id = b.book_id AND bc.copied_book_id = b.copied_book_id
+JOIN branch br ON br.id = bc.branch_id
+WHERE b.member_id = %s AND b.return_date IS NULL
+ORDER BY b.due_date ASC
+"""
+    with get_cursor() as (cur, conn):
+        cur.execute(query_used, (member_id,))
+        rows = cur.fetchall()
+    
+    return jsonify({"loans": rows, "query": query_used.strip()})
+
+
 # GET /borrows/stats - Aggregation: books borrowed per member
 @borrows_bp.route("/stats", methods=["GET"])
 def get_borrow_stats():
