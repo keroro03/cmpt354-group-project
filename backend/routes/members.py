@@ -149,3 +149,65 @@ AND EXISTS (
         "genre": genre,
         "query": query_used.strip()
     })
+
+# Nested: Add a branch to a member
+# POST /members/<member_id>/branches  body: { branch_id }
+# returns the new member-branch association (member_id, branch_id)
+@members_bp.route("/members/<uuid:member_id>/branches", methods=["POST"])
+def add_branch_to_member(member_id):
+    data = request.json
+    branch_id = data.get("branch_id")
+    if not branch_id:
+        return jsonify({"error": "branch_id is required"}), 400
+    
+    try:
+        with get_cursor() as (cur, conn):
+            cur.execute("""
+                INSERT INTO member_branch (member_id, branch_id)
+                VALUES (%s, %s)
+                RETURNING member_id, branch_id;
+            """, (
+                str(member_id), 
+                str(branch_id)
+            ))
+            association = cur.fetchone()
+        return jsonify(association), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    
+#Selection query: Get branches associated with a member
+# GET /members/<member_id>/branches
+@members_bp.route("/members/<uuid:member_id>/branches", methods=["GET"])
+def get_member_branches(member_id):
+    query_used = """
+SELECT mb.branch_id, b.name as branch_name
+FROM member_branch mb
+JOIN branch b ON mb.branch_id = b.id
+WHERE mb.member_id = %s
+"""
+    with get_cursor() as (cur, conn):        
+        cur.execute(query_used, (str(member_id),))
+        rows = cur.fetchall()
+    return jsonify({"branches": rows, "query": query_used.strip()})
+
+# Nested: Remove a branch from a member
+# DELETE /members/<member_id>/branches/<branch_id>
+@members_bp.route("/members/<uuid:member_id>/branches/<uuid:branch_id>", methods=["DELETE"])
+def delete_branch_from_member(member_id, branch_id):
+    try:
+        with get_cursor() as (cur, conn):
+            cur.execute("""
+                DELETE FROM member_branch 
+                WHERE member_id = %s AND branch_id = %s
+                RETURNING member_id, branch_id;
+            """, (
+                str(member_id), 
+                str(branch_id)
+            ))
+            deleted = cur.fetchone()
+            if deleted:
+                return jsonify({"message": "Branch removed from member"})
+            else:
+                return jsonify({"error": "Association not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400

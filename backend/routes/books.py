@@ -172,3 +172,21 @@ def delete_copy(book_id, copied_book_id):
             return jsonify({"message": "Copy deleted", "copied_book_id": deleted_copy[0]}), 200
         else:
             return jsonify({"error": "Copy not found"}), 404
+
+# Nested: Add an author to a book
+@books_bp.route("/<uuid:book_id>/authors", methods=["POST"])
+def add_author_to_book(book_id):
+    data = request.json
+    author_id = data.get("author_id")
+    
+    if not author_id:
+        return jsonify({"error": "author_id is required"}), 400
+    
+    query_used = """
+INSERT INTO book_author (book_id, author_id)
+VALUES (%s, %s)
+"""
+    with get_cursor() as (cur, conn):
+        cur.execute(query_used, (str(book_id), author_id))
+        new_book_author = cur.fetchone()
+    return jsonify({"message": "Author added to book", "book_id": book_id, "author_id": author_id, "query": query_used.strip()}), 201
