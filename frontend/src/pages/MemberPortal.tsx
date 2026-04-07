@@ -3,9 +3,11 @@ import { Search, Loader2 } from "lucide-react";
 import AppNavbar from "@/components/AppNavbar";
 import QueryDisplay from "@/components/QueryDisplay";
 import { booksApi, membersApi } from "@/lib/api";
+import { useMember } from "@/contexts/MemberContext";
 import type { Book, Member, Loan } from "@/types/api";
 
 const MemberPortal = () => {
+  const { selectedMember: globalMember } = useMember();
   const [searchTerm, setSearchTerm] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
   const [booksQuery, setBooksQuery] = useState("");
@@ -28,7 +30,10 @@ const MemberPortal = () => {
         setBooks(booksRes.books);
         setBooksQuery(booksRes.query || "");
         setMembers(membersRes.members);
-        if (membersRes.members.length > 0) {
+        // Use global member if selected, otherwise default to first member
+        if (globalMember) {
+          setSelectedMemberId(globalMember.id);
+        } else if (membersRes.members.length > 0) {
           setSelectedMemberId(membersRes.members[0].id);
         }
       } catch (err) {
@@ -38,7 +43,7 @@ const MemberPortal = () => {
       }
     };
     loadData();
-  }, []);
+  }, [globalMember]);
 
   // Load member loans when selected member changes
   useEffect(() => {
@@ -173,7 +178,7 @@ const MemberPortal = () => {
             {/* Member Selector */}
             <div className="border border-border p-4 mb-6">
               <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2 block">
-                Select Member
+                View Member
               </label>
               <select
                 value={selectedMemberId}
@@ -183,6 +188,7 @@ const MemberPortal = () => {
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.first_name} {member.last_name}
+                    {globalMember?.id === member.id ? " (You)" : ""}
                   </option>
                 ))}
               </select>

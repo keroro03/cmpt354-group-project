@@ -57,7 +57,7 @@ SELECT
     bk.title as book_title,
     b.loan_date,
     b.due_date,
-    br.name as branch_name
+    br.branch_name as branch_name
 FROM borrow b
 JOIN book bk ON bk.id = b.book_id
 JOIN book_copies bc ON bc.book_id = b.book_id AND bc.copied_book_id = b.copied_book_id
