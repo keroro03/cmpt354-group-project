@@ -10,13 +10,17 @@ books_bp = Blueprint("books", __name__)
 def search_books():
     q = request.args.get("q", "").strip()
     book_id = request.args.get("book_id", "").strip()
-    
+    genre = request.args.get("genre", "").strip()
+
     query_used = ""
-    
+
     with get_cursor() as (cur, conn):
         if book_id:
             query_used = "SELECT DISTINCT b.* FROM book b WHERE b.id = %s"
             cur.execute(query_used, (book_id,))
+        elif genre:
+            query_used = "SELECT * FROM book WHERE LOWER(genre) = LOWER(%s) ORDER BY title"
+            cur.execute(query_used, (genre,))
         elif q:
             like = f"%{q.lower()}%"
             query_used = """
@@ -31,9 +35,9 @@ WHERE LOWER(b.title) LIKE %s
         else:
             query_used = "SELECT * FROM book ORDER BY title"
             cur.execute(query_used)
-        
+
         rows = cur.fetchall()
-    
+
     return jsonify({"books": rows, "query": query_used.strip()})
 
 
