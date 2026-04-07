@@ -35,13 +35,13 @@ VALUES
 ON CONFLICT (member_id, branch_id) DO NOTHING;
 
 -- staff (5)
-INSERT INTO staff (id, branch_id, first_name, last_name, email)
+INSERT INTO staff (id, branch_id, first_name, last_name, email, role)
 VALUES
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Liam',  'Wong',   'liam.staff@example.com'),
-  ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Mia',   'Tan',    'mia.staff@example.com'),
-  ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', 'Noah',  'Kim',    'noah.staff@example.com'),
-  ('30000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000003', 'Olivia','Park',   'olivia.staff@example.com'),
-  ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000004', 'Peter', 'Santos', 'peter.staff@example.com')
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Liam',  'Wong',   'liam.staff@example.com',   'librarian'),
+  ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Mia',   'Tan',    'mia.staff@example.com',    'assistant_manager'),
+  ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', 'Noah',  'Kim',    'noah.staff@example.com',   'manager'),
+  ('30000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000003', 'Olivia','Park',   'olivia.staff@example.com', 'librarian'),
+  ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000004', 'Peter', 'Santos', 'peter.staff@example.com',  'librarian')
 ON CONFLICT (id) DO NOTHING;
 
 -- librarian (5) — one per staff using disjoint rule
@@ -73,14 +73,14 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- book (5)
-INSERT INTO book (id, title, isbn, publish_year, publisher, genre)
+INSERT INTO book (id, title, isbn, publish_year, publisher, genre, language)
 VALUES
-  ('50000000-0000-0000-0000-000000000001', '1984',                    '9780451524935', 1949, 'Secker & Warburg',       'Dystopian'),
-  ('50000000-0000-0000-0000-000000000002', 'Animal Farm',             '9780451526342', 1945, 'Secker & Warburg',       'Political Satire'),
-  ('50000000-0000-0000-0000-000000000003', 'To Kill a Mockingbird',   '9780061120084', 1960, 'J. B. Lippincott & Co.', 'Fiction'),
-  ('50000000-0000-0000-0000-000000000004', 'Sapiens',                 '9780062316097', 2011, 'Harvill Secker',         'History'),
-  ('50000000-0000-0000-0000-000000000005', 'The Great Gatsby',        '9780743273565', 1925, 'Scribner',               'Fiction'),
-  ('50000000-0000-0000-0000-000000000006', 'Pride and Prejudice',     '9780141439518', 1813, 'T. Egerton',             'Romance')
+  ('50000000-0000-0000-0000-000000000001', '1984',                    '9780451524935', 1949, 'Secker & Warburg',       'Dystopian',        'English'),
+  ('50000000-0000-0000-0000-000000000002', 'Animal Farm',             '9780451526342', 1945, 'Secker & Warburg',       'Political Satire', 'English'),
+  ('50000000-0000-0000-0000-000000000003', 'To Kill a Mockingbird',   '9780061120084', 1960, 'J. B. Lippincott & Co.', 'Fiction',          'English'),
+  ('50000000-0000-0000-0000-000000000004', 'Sapiens',                 '9780062316097', 2011, 'Harvill Secker',         'History',          'English'),
+  ('50000000-0000-0000-0000-000000000005', 'The Great Gatsby',        '9780743273565', 1925, 'Scribner',               'Fiction',          'English'),
+  ('50000000-0000-0000-0000-000000000006', 'Pride and Prejudice',     '9780141439518', 1813, 'T. Egerton',             'Romance',          'English')
 ON CONFLICT (id) DO NOTHING;
 
 -- book_author (5)

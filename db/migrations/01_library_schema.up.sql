@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS staff (
   branch_id UUID NOT NULL REFERENCES branch(id) ON DELETE RESTRICT,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
-  email TEXT NOT NULL
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'staff'
 );
 
 -- inherites from staff
@@ -71,7 +72,8 @@ CREATE TABLE IF NOT EXISTS book (
   isbn TEXT,
   publish_year INT,
   publisher TEXT,
-  genre TEXT
+  genre TEXT,
+  language TEXT NOT NULL DEFAULT 'English'
 );
 
 -- book author own many-to-many
