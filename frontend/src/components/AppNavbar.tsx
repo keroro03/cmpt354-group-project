@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, Settings } from "lucide-react";
+import { useMember } from "@/contexts/MemberContext";
 
 const AppNavbar = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const { selectedMember, isLoaded } = useMember();
 
   const links = [
     { path: "/member", label: "Catalog" },
@@ -33,11 +35,21 @@ const AppNavbar = () => {
             {link.label}
           </Link>
         ))}
+
+        {/* Member identity display */}
         <Link
-          to="/login"
-          className="text-xs font-mono uppercase tracking-wider bg-foreground text-background px-4 py-2 hover:opacity-90 transition-opacity"
+          to="/settings"
+          className="flex items-center gap-2 pl-4 border-l border-border"
         >
-          Login
+          <User className="w-4 h-4 text-muted-foreground" />
+          {isLoaded && (
+            <span className="text-xs font-mono text-muted-foreground">
+              {selectedMember
+                ? `${selectedMember.first_name} ${selectedMember.last_name}`
+                : "No member"}
+            </span>
+          )}
+          <Settings className="w-3 h-3 text-muted-foreground" />
         </Link>
       </div>
 
@@ -61,8 +73,19 @@ const AppNavbar = () => {
               {link.label}
             </Link>
           ))}
-          <Link to="/login" onClick={() => setOpen(false)} className="text-xs font-mono uppercase tracking-wider bg-foreground text-background px-4 py-2 w-fit hover:opacity-90 transition-opacity">
-            Login
+          <Link
+            to="/settings"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 pt-4 border-t border-border text-xs font-mono uppercase tracking-wider text-muted-foreground"
+          >
+            <User className="w-4 h-4" />
+            {isLoaded && (
+              <span>
+                {selectedMember
+                  ? `Acting as: ${selectedMember.first_name}`
+                  : "Select member"}
+              </span>
+            )}
           </Link>
         </div>
       )}
