@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from psycopg2 import Error
 from db.connection import get_cursor
 
 books_bp = Blueprint("books", __name__)
@@ -53,7 +54,7 @@ WHERE bc.book_id = %s AND bc.status = 'AVAILABLE'
     with get_cursor() as (cur, conn):
         cur.execute(query_used, (book_id,))
         rows = cur.fetchall()
-    
+
     return jsonify({"copies": rows, "query": query_used.strip()})
 
 
@@ -70,7 +71,7 @@ ORDER BY bc.copied_book_id
     with get_cursor() as (cur, conn):
         cur.execute(query_used, (book_id,))
         rows = cur.fetchall()
-    
+
     return jsonify({"copies": rows, "query": query_used.strip()})
 
 
@@ -88,7 +89,7 @@ LIMIT 10
     with get_cursor() as (cur, conn):
         cur.execute(query_used)
         rows = cur.fetchall()
-    
+
     return jsonify({"popular_books": rows, "query": query_used.strip()})
 
 
@@ -106,7 +107,7 @@ ORDER BY b.title
     with get_cursor() as (cur, conn):
         cur.execute(query_used)
         rows = cur.fetchall()
-    
+
     return jsonify({"books": rows, "query": query_used.strip()})
 
 
@@ -117,7 +118,7 @@ def get_genres():
     with get_cursor() as (cur, conn):
         cur.execute(query_used)
         rows = cur.fetchall()
-    
+
     genres = [row["genre"] for row in rows]
     return jsonify({"genres": genres, "query": query_used})
 
@@ -126,21 +127,31 @@ def get_genres():
 # Cannot delete if any copy is currently borrowed
 @books_bp.route("/<book_id>", methods=["DELETE"])
 def delete_book(book_id):
-    with get_cursor(dict_cursor=False) as (cur, conn):
-        cur.execute(
-            """
-            SELECT 1 FROM borrow
-            WHERE book_id = %s AND return_date IS NULL
-            LIMIT 1
-            """,
-            (book_id,),
-        )
-        if cur.fetchone():
-            return jsonify({"error": "Cannot delete a book that is currently borrowed"}), 409
-        
-        cur.execute("DELETE FROM book WHERE id = %s", (book_id,))
-    
-    return jsonify({"message": "Book deleted successfully"})
+    try:
+        with get_cursor(dict_cursor=False) as (cur, conn):
+            cur.execute(
+                """
+                SELECT 1 FROM borrow
+                WHERE book_id = %s AND return_date IS NULL
+                LIMIT 1
+                """,
+                (book_id,),
+            )
+            if cur.fetchone():
+                return jsonify({"error": "Cannot delete a book that is currently borrowed"}), 409
+
+            # book_author uses ON DELETE RESTRICT, so detach author links first.
+            cur.execute(
+                "DELETE FROM book_author WHERE book_id = %s", (book_id,))
+            cur.execute(
+                "DELETE FROM book WHERE id = %s RETURNING id", (book_id,))
+            deleted = cur.fetchone()
+            if not deleted:
+                return jsonify({"error": "Book not found"}), 404
+
+        return jsonify({"message": "Book deleted successfully"})
+    except Error as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # POST /copies - Add a new book copy
@@ -154,7 +165,7 @@ def add_copy():
             RETURNING book_id, copied_book_id
         """, (data['book_id'], data['copied_book_id'], data['branch_id'], data.get('status', 'AVAILABLE')))
         new_copy = cur.fetchone()
-    
+
     return jsonify({"message": "Copy added", "ids": new_copy}), 201
 
 
@@ -163,8 +174,8 @@ def add_copy():
 def delete_copy(book_id, copied_book_id):
     with get_cursor(dict_cursor=False) as (cur, conn):
         cur.execute("""
-            DELETE FROM book_copies 
-            WHERE book_id = %s AND copied_book_id = %s 
+            DELETE FROM book_copies
+            WHERE book_id = %s AND copied_book_id = %s
             RETURNING copied_book_id
         """, (str(book_id), copied_book_id))
         deleted_copy = cur.fetchone()
@@ -174,14 +185,16 @@ def delete_copy(book_id, copied_book_id):
             return jsonify({"error": "Copy not found"}), 404
 
 # Nested: Add an author to a book
+
+
 @books_bp.route("/<uuid:book_id>/authors", methods=["POST"])
 def add_author_to_book(book_id):
     data = request.json
     author_id = data.get("author_id")
-    
+
     if not author_id:
         return jsonify({"error": "author_id is required"}), 400
-    
+
     query_used = """
 INSERT INTO book_author (book_id, author_id)
 VALUES (%s, %s)

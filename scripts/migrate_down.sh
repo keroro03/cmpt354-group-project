@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIGRATIONS_DIR="$ROOT_DIR/db/migrations"
-
 if ! command -v psql >/dev/null 2>&1; then
   echo "Error: psql is not installed or not in PATH." >&2
   exit 1
@@ -15,20 +12,35 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   exit 1
 fi
 
-shopt -s nullglob
-migration_files=("$MIGRATIONS_DIR"/*.down.sql)
+db_url="${DATABASE_URL}"
+db_url_no_query="${db_url%%\?*}"
+db_url_no_query="${db_url_no_query%%\#*}"
+target_db="${db_url_no_query##*/}"
+target_prefix="${db_url_no_query%/*}"
+admin_url="${target_prefix}/postgres"
 
-if [[ ${#migration_files[@]} -eq 0 ]]; then
-  echo "No down migrations found in $MIGRATIONS_DIR"
-  exit 0
+if [[ -z "$target_db" || "$target_db" == "$db_url_no_query" ]]; then
+  echo "Error: Could not parse target database name from DATABASE_URL." >&2
+  exit 1
 fi
 
-IFS=$'\n' sorted_files=($(printf '%s\n' "${migration_files[@]}" | sort -r))
-unset IFS
+case "$target_db" in
+  postgres|template0|template1)
+    echo "Error: Refusing to operate on protected database '$target_db'." >&2
+    exit 1
+    ;;
+esac
 
-for file in "${sorted_files[@]}"; do
-  echo "Reverting: $file"
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$file"
-done
+echo "Target database: $target_db"
+echo "Bootstrap connection: $admin_url"
+echo "Dropping target database..."
+psql "$admin_url" -v ON_ERROR_STOP=1 -v target_db="$target_db" <<'SQL'
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = :'target_db'
+  AND pid <> pg_backend_pid();
 
-echo "All down migrations applied successfully."
+SELECT format('DROP DATABASE IF EXISTS %I', :'target_db') \gexec
+SQL
+
+echo "Database '$target_db' dropped successfully."
