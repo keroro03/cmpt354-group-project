@@ -153,7 +153,7 @@ AND EXISTS (
 # Nested: Add a branch to a member
 # POST /members/<member_id>/branches  body: { branch_id }
 # returns the new member-branch association (member_id, branch_id)
-@members_bp.route("/members/<uuid:member_id>/branches", methods=["POST"])
+@members_bp.route("/<uuid:member_id>/branches", methods=["POST"])
 def add_branch_to_member(member_id):
     data = request.json
     branch_id = data.get("branch_id")
@@ -177,10 +177,10 @@ def add_branch_to_member(member_id):
     
 #Selection query: Get branches associated with a member
 # GET /members/<member_id>/branches
-@members_bp.route("/members/<uuid:member_id>/branches", methods=["GET"])
+@members_bp.route("/<uuid:member_id>/branches", methods=["GET"])
 def get_member_branches(member_id):
     query_used = """
-SELECT mb.branch_id, b.name as branch_name
+SELECT mb.branch_id, b.branch_name as branch_name
 FROM member_branch mb
 JOIN branch b ON mb.branch_id = b.id
 WHERE mb.member_id = %s
@@ -192,7 +192,7 @@ WHERE mb.member_id = %s
 
 # Nested: Remove a branch from a member
 # DELETE /members/<member_id>/branches/<branch_id>
-@members_bp.route("/members/<uuid:member_id>/branches/<uuid:branch_id>", methods=["DELETE"])
+@members_bp.route("/<uuid:member_id>/branches/<uuid:branch_id>", methods=["DELETE"])
 def delete_branch_from_member(member_id, branch_id):
     try:
         with get_cursor() as (cur, conn):

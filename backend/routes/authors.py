@@ -40,7 +40,13 @@ RETURNING id, first_name, last_name
 # DELETE /authors/<author_id> - Delete an author
 @authors_bp.route("/<uuid:author_id>", methods=["DELETE"])
 def delete_author(author_id):
-    query_used = "DELETE FROM author WHERE id = %s"
-    with get_cursor() as (cur, conn):
-        cur.execute(query_used, (str(author_id),))
-    return jsonify({"message": "Author deleted", "query": query_used.strip()})
+    query_used = "DELETE FROM author WHERE id = %s RETURNING id"
+    try:
+        with get_cursor(dict_cursor=False) as (cur, conn):
+            cur.execute(query_used, (str(author_id),))
+            deleted = cur.fetchone()
+            if not deleted:
+                return jsonify({"error": "Author not found"}), 404
+        return jsonify({"message": "Author deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
