@@ -32,18 +32,20 @@ def borrow_book():
 @borrows_bp.route("/return", methods=["POST"])
 def return_book():
     data = request.json
-    with get_cursor(dict_cursor=False) as (cur, conn):
-        cur.execute("""
-            UPDATE borrow 
-            SET return_date = CURRENT_DATE 
-            WHERE book_id = %s AND copied_book_id = %s AND return_date IS NULL
-            RETURNING id
-        """, (data['book_id'], data['copied_book_id']))
-        updated = cur.fetchone()
-        if not updated:
-            return jsonify({"error": "No active loan found for this copy"}), 404
-    
-    return jsonify({"message": "Book returned successfully"})
+    try:
+        with get_cursor(dict_cursor=False) as (cur, conn):
+            cur.execute("""
+                UPDATE borrow
+                SET return_date = CURRENT_DATE
+                WHERE book_id = %s AND copied_book_id = %s AND return_date IS NULL
+                RETURNING id
+            """, (data['book_id'], data['copied_book_id']))
+            updated = cur.fetchone()
+            if not updated:
+                return jsonify({"error": "No active loan found for this copy"}), 404
+        return jsonify({"message": "Book returned successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # GET /borrow/member/:member_id/active - Get active loans for a member
@@ -76,7 +78,7 @@ ORDER BY b.due_date ASC
 @borrows_bp.route("/stats", methods=["GET"])
 def get_borrow_stats():
     query_used = """
-SELECT 
+SELECT
     m.id as member_id,
     m.first_name,
     m.last_name,
@@ -88,8 +90,10 @@ LEFT JOIN borrow b ON b.member_id = m.id
 GROUP BY m.id, m.first_name, m.last_name
 ORDER BY total_borrowed DESC
 """
-    with get_cursor() as (cur, conn):
-        cur.execute(query_used)
-        rows = cur.fetchall()
-    
-    return jsonify({"stats": rows, "query": query_used.strip()})
+    try:
+        with get_cursor() as (cur, conn):
+            cur.execute(query_used)
+            rows = cur.fetchall()
+        return jsonify({"stats": rows, "query": query_used.strip()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400

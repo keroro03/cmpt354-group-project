@@ -143,6 +143,9 @@ def delete_book(book_id):
             # book_author uses ON DELETE RESTRICT, so detach author links first.
             cur.execute(
                 "DELETE FROM book_author WHERE book_id = %s", (book_id,))
+            # book_copies may not have CASCADE, so delete copies before the book.
+            cur.execute(
+                "DELETE FROM book_copies WHERE book_id = %s", (book_id,))
             cur.execute(
                 "DELETE FROM book WHERE id = %s RETURNING id", (book_id,))
             deleted = cur.fetchone()
@@ -158,31 +161,42 @@ def delete_book(book_id):
 @books_bp.route("/copies", methods=["POST"])
 def add_copy():
     data = request.json
-    with get_cursor(dict_cursor=False) as (cur, conn):
-        cur.execute("""
-            INSERT INTO book_copies (book_id, copied_book_id, branch_id, status)
-            VALUES (%s, %s, %s, %s)
-            RETURNING book_id, copied_book_id
-        """, (data['book_id'], data['copied_book_id'], data['branch_id'], data.get('status', 'AVAILABLE')))
-        new_copy = cur.fetchone()
+    try:
+        with get_cursor(dict_cursor=False) as (cur, conn):
+            cur.execute("""
+                INSERT INTO book_copies (book_id, copied_book_id, branch_id, status)
+                VALUES (
+                    %s, 
+                    (SELECT COALESCE(MAX(copied_book_id), 0) + 1 FROM book_copies WHERE book_id = %s), 
+                    %s, 
+                    %s
+                )
+                RETURNING book_id, copied_book_id
+            """, (data['book_id'], data['book_id'], data['branch_id'], data.get('status', 'AVAILABLE')))
+            new_copy = cur.fetchone()
 
-    return jsonify({"message": "Copy added", "ids": new_copy}), 201
+        return jsonify({"message": "Copy added", "ids": new_copy}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # DELETE /copies/<book_id>/<copied_book_id>
 @books_bp.route("/copies/<book_id>/<int:copied_book_id>", methods=["DELETE"])
 def delete_copy(book_id, copied_book_id):
-    with get_cursor(dict_cursor=False) as (cur, conn):
-        cur.execute("""
-            DELETE FROM book_copies
-            WHERE book_id = %s AND copied_book_id = %s
-            RETURNING copied_book_id
-        """, (str(book_id), copied_book_id))
-        deleted_copy = cur.fetchone()
-        if deleted_copy:
-            return jsonify({"message": "Copy deleted", "copied_book_id": deleted_copy[0]}), 200
-        else:
-            return jsonify({"error": "Copy not found"}), 404
+    try:
+        with get_cursor(dict_cursor=False) as (cur, conn):
+            cur.execute("""
+                DELETE FROM book_copies
+                WHERE book_id = %s AND copied_book_id = %s
+                RETURNING copied_book_id
+            """, (str(book_id), copied_book_id))
+            deleted_copy = cur.fetchone()
+            if deleted_copy:
+                return jsonify({"message": "Copy deleted", "copied_book_id": deleted_copy[0]}), 200
+            else:
+                return jsonify({"error": "Copy not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 # Nested: Add an author to a book
 
@@ -198,8 +212,11 @@ def add_author_to_book(book_id):
     query_used = """
 INSERT INTO book_author (book_id, author_id)
 VALUES (%s, %s)
+RETURNING book_id, author_id
 """
-    with get_cursor() as (cur, conn):
-        cur.execute(query_used, (str(book_id), author_id))
-        new_book_author = cur.fetchone()
-    return jsonify({"message": "Author added to book", "book_id": book_id, "author_id": author_id, "query": query_used.strip()}), 201
+    try:
+        with get_cursor() as (cur, conn):
+            cur.execute(query_used, (str(book_id), author_id))
+        return jsonify({"message": "Author added to book", "book_id": str(book_id), "author_id": author_id, "query": query_used.strip()}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
