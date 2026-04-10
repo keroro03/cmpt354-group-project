@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Trash2, Plus, Loader2 } from "lucide-react";
 import AppNavbar from "@/components/AppNavbar";
 import QueryDisplay from "@/components/QueryDisplay";
-import { booksApi, membersApi, branchesApi } from "@/lib/api";
-import type { Book, Member, Branch, BookCopy } from "@/types/api";
+import { booksApi, membersApi, branchesApi, staffApi } from "@/lib/api";
+import type { Book, Member, Branch, BookCopy, Staff} from "@/types/api";
 import { mockStaff, mockBranches as mockBranchesData } from "@/data/mockData";
+import { set } from "date-fns";
 
 type Tab = "books" | "members" | "staff" | "branches" | "copies";
 
@@ -20,7 +21,9 @@ const DatabaseManagement = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [membersQuery, setMembersQuery] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
-
+  const [branchesQuery, setBranchesQuery] = useState("");
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [staffQuery, setStaffQuery] = useState("");
   // Add Member form
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({
@@ -55,16 +58,20 @@ const DatabaseManagement = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [booksRes, membersRes, branchesRes] = await Promise.all([
+        const [booksRes, membersRes, branchesRes, staffRes] = await Promise.all([
           booksApi.search(),
           membersApi.getAll(),
           branchesApi.getAll(),
+          staffApi.getAll(),
         ]);
         setBooks(booksRes.books);
         setBooksQuery(booksRes.query || "");
         setMembers(membersRes.members);
         setMembersQuery(membersRes.query || "");
         setBranches(branchesRes.branches);
+        setBranchesQuery(branchesRes.query || "");
+        setStaff(staffRes.staffs);
+        setStaffQuery(staffRes.query || "");
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : "Failed to load data");
       } finally {
@@ -473,53 +480,59 @@ const DatabaseManagement = () => {
           )}
 
           {activeTab === "staff" && (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">ID</th>
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Name</th>
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Email</th>
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Role</th>
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Branch</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockStaff.map((s) => (
-                  <tr key={s.staff_id} className="border-b border-border last:border-b-0 hover:bg-secondary/50 transition-colors">
-                    <td className="py-3 px-6 text-sm font-mono tabular-nums text-muted-foreground">{s.staff_id}</td>
-                    <td className="py-3 px-6 text-sm font-mono font-bold">{s.first_name} {s.last_name}</td>
-                    <td className="py-3 px-6 text-sm font-mono text-muted-foreground">{s.email}</td>
-                    <td className="py-3 px-6">
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 border border-border text-muted-foreground">
-                        {s.role}
-                      </span>
-                    </td>
-                    <td className="py-3 px-6 text-sm font-mono tabular-nums text-muted-foreground">
-                      {mockBranchesData.find((b) => b.branch_id === s.branch_id)?.branch_name || s.branch_id}
-                    </td>
+            <>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">ID</th>
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Name</th>
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Email</th>
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Role</th>
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Branch</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {staff.map((s) => (
+                    <tr key={s.id} className="border-b border-border last:border-b-0 hover:bg-secondary/50 transition-colors">
+                      <td className="py-3 px-6 text-sm font-mono tabular-nums text-muted-foreground">{s.id}</td>
+                      <td className="py-3 px-6 text-sm font-mono font-bold">{s.first_name} {s.last_name}</td>
+                      <td className="py-3 px-6 text-sm font-mono text-muted-foreground">{s.email}</td>
+                      <td className="py-3 px-6">
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 border border-border text-muted-foreground">
+                          {s.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-6 text-sm font-mono tabular-nums text-muted-foreground">
+                        {branches.find((b) => b.id === s.branch_id)?.branch_name || s.branch_id}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <QueryDisplay query={staffQuery} label="Staff Query" />
+            </>
           )}
 
           {activeTab === "branches" && (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Name</th>
-                  <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                {branches.map((b) => (
-                  <tr key={b.id} className="border-b border-border last:border-b-0 hover:bg-secondary/50 transition-colors">
-                    <td className="py-3 px-6 text-sm font-mono font-bold">{b.branch_name}</td>
-                    <td className="py-3 px-6 text-sm font-mono text-muted-foreground">{b.location}</td>
+            <>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Name</th>
+                    <th className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground py-3 px-6">Location</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {branches.map((b) => (
+                    <tr key={b.id} className="border-b border-border last:border-b-0 hover:bg-secondary/50 transition-colors">
+                      <td className="py-3 px-6 text-sm font-mono font-bold">{b.branch_name}</td>
+                      <td className="py-3 px-6 text-sm font-mono text-muted-foreground">{b.location}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <QueryDisplay query={branchesQuery} label="Branches Query" />
+            </>
           )}
         </div>
       </div>

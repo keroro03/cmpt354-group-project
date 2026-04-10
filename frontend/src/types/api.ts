@@ -35,6 +35,15 @@ export interface Branch {
   location: string;
 }
 
+export interface Staff {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  branch_id: string;
+}
+
 export interface Author {
   id: string;
   first_name: string;
@@ -90,6 +99,10 @@ export interface MembersResponse extends ApiResponse<Member[]> {
 
 export interface BranchesResponse extends ApiResponse<Branch[]> {
   branches: Branch[];
+}
+
+export interface StaffResponse extends ApiResponse<Staff[]> {
+  staffs: Staff[];
 }
 
 export interface AuthorsResponse extends ApiResponse<Author[]> {

@@ -3,6 +3,7 @@ import type {
   CopiesResponse,
   MembersResponse,
   BranchesResponse,
+  StaffResponse,
   AuthorsResponse,
   LoansResponse,
   OverdueLoansResponse,
@@ -129,7 +130,12 @@ export const branchesApi = {
   getAll: () => fetchApi<BranchesResponse>("/branches"),
 };
 
+// Staff API
+export const staffApi = {
+  getAll: () => fetchApi<StaffResponse>("/staffs"),
+};
 // Authors API
 export const authorsApi = {
   getAll: () => fetchApi<AuthorsResponse>("/authors"),
 };
+
