@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 
 const team = [
-  { id: "01", name: "Jerry", role: "Backend Logic & Database Schema" },
-  { id: "02", name: "Mike", role: "Frontend Interface & Routing" },
-  { id: "03", name: "Jeongmin", role: "SQL Optimization & Queries" },
-  { id: "04", name: "James", role: "System Architecture & Testing" },
+  { id: "01", name: "Jerry", role: "SQL Queries and Backend" },
+  { id: "02", name: "Mike", role: "SQL Queries and Backend" },
+  { id: "03", name: "Jeongmin", role: "SQL Queries and Backend" },
+  { id: "04", name: "James", role: "SQL Queries and Backend" },
 ];
 
 const TeamSection = () => {
@@ -44,7 +44,7 @@ const TeamSection = () => {
         </div>
 
         <p className="mt-8 text-xs font-mono text-muted-foreground">
-          This project was created for <span className="font-bold text-foreground">CMPT354: Database Systems</span>. Not for commercial use.
+          This project was created for <span className="font-bold text-foreground">CMPT354: Database Systems</span>.
         </p>
       </div>
     </section>
