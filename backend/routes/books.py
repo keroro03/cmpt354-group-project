@@ -165,14 +165,9 @@ def add_copy():
         with get_cursor(dict_cursor=False) as (cur, conn):
             cur.execute("""
                 INSERT INTO book_copies (book_id, copied_book_id, branch_id, status)
-                VALUES (
-                    %s, 
-                    (SELECT COALESCE(MAX(copied_book_id), 0) + 1 FROM book_copies WHERE book_id = %s), 
-                    %s, 
-                    %s
-                )
+                VALUES (%s, %s, %s, %s)
                 RETURNING book_id, copied_book_id
-            """, (data['book_id'], data['book_id'], data['branch_id'], data.get('status', 'AVAILABLE')))
+            """, (data['book_id'], data['copied_book_id'], data['branch_id'], data.get('status', 'AVAILABLE')))
             new_copy = cur.fetchone()
 
         return jsonify({"message": "Copy added", "ids": new_copy}), 201
