@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 const ProjectScopeSection = () => {
   const stats = [
     { value: "5", label: "MAX LOANS" },
-    { value: "SQL", label: "DATABASE" },
+    { value: "PostgreSQL", label: "DATABASE" },
     { value: "Flask", label: "BACKEND" },
     { value: "3+", label: "BRANCHES" },
   ];

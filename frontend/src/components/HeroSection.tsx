@@ -15,7 +15,7 @@ const HeroSection = () => {
           transition={{ duration: 0.6 }}
         >
           <div className="inline-block border border-foreground px-3 py-1 mb-6 md:mb-8">
-            <span className="text-xs font-mono uppercase tracking-wider">CMPT354 • Fall Semester</span>
+            <span className="text-xs font-mono uppercase tracking-wider">CMPT354 • Spring Semester</span>
           </div>
 
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.9] mb-6 md:mb-8">
@@ -31,7 +31,7 @@ const HeroSection = () => {
           </div>
 
           <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-6 md:mb-8">
-            Stack: Python (Flask) + MySQL
+            Stack: Python (Flask) + PostgreSQL
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

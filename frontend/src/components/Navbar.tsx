@@ -14,7 +14,7 @@ const Navbar = () => {
   return (
     <nav className="flex items-center justify-between px-4 sm:px-8 py-4 bg-background border-b border-border relative">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-mono tracking-tight">【LIB_SYS_V1.0】</span>
+        <span className="text-sm font-mono tracking-tight">LIBRARY SYSTEM</span>
       </div>
 
       {/* Desktop */}
@@ -24,9 +24,6 @@ const Navbar = () => {
             {link.label}
           </a>
         ))}
-        <Link to="/login" className="text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-          Login
-        </Link>
       </div>
 
       {/* Mobile toggle */}
