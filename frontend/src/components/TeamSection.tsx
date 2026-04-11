@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 
 const team = [
-  { id: "01", name: "Jerry", role: "SQL Queries and Backend" },
-  { id: "02", name: "Mike", role: "SQL Queries and Backend" },
-  { id: "03", name: "Jeongmin", role: "SQL Queries and Backend" },
-  { id: "04", name: "James", role: "SQL Queries and Backend" },
+  { id: "01", name: "Jerry Meng", role: "SQL Queries and Backend" },
+  { id: "02", name: "Mike Bui", role: "SQL Queries and Backend" },
+  { id: "03", name: "Jason Jang", role: "SQL Queries and Backend" },
+  { id: "04", name: "James Hoang", role: "SQL Queries and Backend" },
 ];
 
 const TeamSection = () => {
