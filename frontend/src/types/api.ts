@@ -62,7 +62,7 @@ export interface Loan {
   return_date: string | null;
   book_title?: string;
   branch_name?: string;
-  borrow_id?: string;
+  borrow_id: string;
 }
 
 export interface PopularBook {

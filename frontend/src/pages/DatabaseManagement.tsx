@@ -4,8 +4,7 @@ import AppNavbar from "@/components/AppNavbar";
 import QueryDisplay from "@/components/QueryDisplay";
 import { booksApi, membersApi, branchesApi, staffApi } from "@/lib/api";
 import type { Book, Member, Branch, BookCopy, Staff} from "@/types/api";
-import { mockStaff, mockBranches as mockBranchesData } from "@/data/mockData";
-import { set } from "date-fns";
+
 
 type Tab = "books" | "members" | "staff" | "branches" | "copies";
 
